@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeapMap 全頁面追蹤示例</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .status-bar {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+        
+        .status-label {
+            font-size: 0.8em;
+            color: #718096;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .status-tracking {
+            color: #38a169;
+        }
+        
+        .demo-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .demo-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+        
+        .demo-card h3 {
+            margin: 0 0 10px 0;
+            color: #4a5568;
+        }
+        
+        .demo-card p {
+            margin: 0;
+            color: #718096;
+            font-size: 0.9em;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #2d3748;
+        }
+        
+        .click-indicator {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.8) 0%, rgba(102, 126, 234, 0.2) 70%, transparent 100%);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: clickPulse 0.6s ease-out;
+            z-index: 9999;
+        }
+        
+        @keyframes clickPulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(3);
+                opacity: 0;
+            }
+        }
+        
+        .recent-clicks {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .recent-clicks h3 {
+            margin: 0 0 15px 0;
+            color: #4a5568;
+        }
+        
+        .click-item {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .click-element {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .click-time {
+            color: #718096;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <!-- 載入 HeapMap SDK -->
+    <script src="../dist/heapmap.js"></script>
+    
+    <div class="container">
+        <h1>🗺️ HeapMap 全頁面追蹤</h1>
+        <p class="subtitle">點擊頁面任何地方都會被自動追蹤和記錄</p>
+        
+        <!-- 狀態欄 -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">追蹤狀態</div>
+                <div class="status-value status-tracking" id="trackingStatus">啟動中</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">總點擊數</div>
+                <div class="status-value" id="totalClicks">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">會話 ID</div>
+                <div class="status-value" id="sessionId">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">最後點擊</div>
+                <div class="status-value" id="lastClick">-</div>
+            </div>
+        </div>
+        
+        <!-- 示例互動區域 -->
+        <div class="demo-area">
+            <div class="demo-card" data-demo="card1">
+                <h3>📊 示例卡片 1</h3>
+                <p>點擊這個卡片測試追蹤功能</p>
+            </div>
+            
+            <div class="demo-card" data-demo="card2">
+                <h3>🎯 示例卡片 2</h3>
+                <p>每次點擊都會被精確記錄</p>
+            </div>
+            
+            <div class="demo-card" data-demo="card3">
+                <h3>📱 示例卡片 3</h3>
+                <p>包含座標、時間和元素資訊</p>
+            </div>
+            
+            <div class="demo-card" data-demo="card4">
+                <h3>⚡ 示例卡片 4</h3>
+                <p>即時更新統計資訊</p>
+            </div>
+        </div>
+        
+        <!-- 控制按鈕 -->
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" onclick="exportData()">📁 匯出資料</button>
+            <button class="btn btn-secondary" onclick="clearData()">🗑️ 清除資料</button>
+            <button class="btn btn-secondary" onclick="toggleTracking()">⏸️ 暫停追蹤</button>
+        </div>
+        
+        <!-- 最近點擊記錄 -->
+        <div class="recent-clicks">
+            <h3>📋 最近點擊記錄</h3>
+            <div id="recentClicksList">
+                <div style="color: #718096; font-style: italic;">尚無點擊記錄</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全域變數
+        let isTracking = true;
+        let clickHistory = [];
+        
+        // 初始化 HeapMap SDK - 一進網頁就自動開始追蹤整個 document
+        HeapMap.init({
+            maxDataPoints: 1000,
+            excludeSelectors: [], // 不排除任何元素，追蹤整個頁面
+            includeOnlySelectors: [] // 不限制特定元素，全頁面追蹤
+        }).start();
+        
+        // 監聽點擊事件
+        HeapMap.on('click', (event) => {
+            const clickData = event.detail;
+            console.log('檢測到點擊:', clickData);
+            
+            // 更新統計
+            updateStatus();
+            
+            // 加入點擊歷史
+            addToClickHistory(clickData);
+            
+            // 顯示點擊視覺效果
+            showClickIndicator(clickData.coordinates.clientX, clickData.coordinates.clientY);
+        });
+        
+        // 更新狀態顯示
+        function updateStatus() {
+            const stats = HeapMap.getStats();
+            
+            document.getElementById('totalClicks').textContent = stats.totalClicks;
+            document.getElementById('sessionId').textContent = stats.sessionId.substring(0, 8) + '...';
+            document.getElementById('trackingStatus').textContent = stats.isTracking ? '啟動中' : '已暫停';
+            
+            if (stats.lastClick) {
+                const lastTime = new Date(stats.lastClick).toLocaleTimeString();
+                document.getElementById('lastClick').textContent = lastTime;
+            }
+        }
+        
+        // 加入點擊歷史記錄
+        function addToClickHistory(clickData) {
+            clickHistory.unshift(clickData);
+            if (clickHistory.length > 10) {
+                clickHistory.pop();
+            }
+            
+            updateRecentClicksList();
+        }
+        
+        // 更新最近點擊列表
+        function updateRecentClicksList() {
+            const container = document.getElementById('recentClicksList');
+            
+            if (clickHistory.length === 0) {
+                container.innerHTML = '<div style="color: #718096; font-style: italic;">尚無點擊記錄</div>';
+                return;
+            }
+            
+            container.innerHTML = clickHistory.map(click => {
+                const time = new Date(click.timestamp).toLocaleTimeString();
+                const element = click.element.tagName.toLowerCase();
+                const elementInfo = click.element.id ? `#${click.element.id}` : 
+                                  click.element.className ? `.${click.element.className.split(' ')[0]}` : 
+                                  element;
+                
+                return `
+                    <div class="click-item">
+                        <span class="click-element">${element}${elementInfo !== element ? elementInfo : ''}</span>
+                        <span style="margin: 0 10px;">@</span>
+                        <span>(${click.coordinates.pageX}, ${click.coordinates.pageY})</span>
+                        <div class="click-time">${time}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 顯示點擊視覺指示器
+        function showClickIndicator(x, y) {
+            const indicator = document.createElement('div');
+            indicator.className = 'click-indicator';
+            indicator.style.left = x + 'px';
+            indicator.style.top = y + 'px';
+            
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                document.body.removeChild(indicator);
+            }, 600);
+        }
+        
+        // 匯出資料
+        function exportData() {
+            const data = HeapMap.exportData();
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `heapmap-fullpage-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 清除資料
+        function clearData() {
+            HeapMap.clearData();
+            clickHistory = [];
+            updateStatus();
+            updateRecentClicksList();
+            console.log('資料已清除');
+        }
+        
+        // 切換追蹤狀態
+        function toggleTracking() {
+            if (isTracking) {
+                HeapMap.stop();
+                isTracking = false;
+                event.target.textContent = '▶️ 開始追蹤';
+                document.getElementById('trackingStatus').textContent = '已暫停';
+            } else {
+                HeapMap.start();
+                isTracking = true;
+                event.target.textContent = '⏸️ 暫停追蹤';
+                document.getElementById('trackingStatus').textContent = '啟動中';
+            }
+        }
+        
+        // 初始化狀態顯示
+        updateStatus();
+        
+        // 控制台輸出
+        console.log('🗺️ HeapMap 全頁面追蹤已啟動！');
+        console.log('點擊頁面任何地方都會被自動追蹤和記錄');
+        console.log('可用命令:');
+        console.log('- HeapMap.getData() // 獲取所有點擊資料');
+        console.log('- HeapMap.getStats() // 獲取統計資訊');
+        console.log('- HeapMap.stop() // 停止追蹤');
+        console.log('- HeapMap.start() // 開始追蹤');
+    </script>
+</body>
+</html>

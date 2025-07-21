@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeapMap SDK 測試頁面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .test-area {
+            border: 2px dashed #007bff;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+            background: #f0f8ff;
+        }
+        
+        .test-elements {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .test-button {
+            background: #28a745;
+        }
+        
+        .test-button:hover {
+            background: #218838;
+        }
+        
+        .test-link {
+            color: #007bff;
+            text-decoration: none;
+            padding: 10px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+        }
+        
+        .test-input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        
+        .data-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ HeapMap SDK 測試頁面</h1>
+        
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <h3>📊 控制面板</h3>
+            <button id="startBtn">開始追蹤</button>
+            <button id="stopBtn" disabled>停止追蹤</button>
+            <button id="clearBtn">清除資料</button>
+            <button id="exportBtn">匯出資料</button>
+            <button id="showStatsBtn">顯示統計</button>
+        </div>
+        
+        <!-- 測試區域 -->
+        <div class="test-area">
+            <h3>🎯 測試區域 - 點擊下方元素進行測試</h3>
+            
+            <div class="test-elements">
+                <button class="test-button" id="testBtn1">測試按鈕 1</button>
+                <button class="test-button" id="testBtn2">測試按鈕 2</button>
+                <button class="test-link" type="button">測試連結</button>
+                <input type="text" class="test-input" placeholder="測試輸入框">
+                <div style="padding: 15px; background: #ffc107; border-radius: 5px; cursor: pointer;">
+                    📋 可點擊的 DIV
+                </div>
+            </div>
+            
+            <p>點擊任何元素都會被追蹤並記錄！</p>
+        </div>
+        
+        <!-- 統計資訊 -->
+        <div id="statsContainer" class="stats" style="display: none;">
+            <div class="stat-item">
+                <div class="stat-label">追蹤狀態</div>
+                <div class="stat-value" id="trackingStatus">停止</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">總點擊數</div>
+                <div class="stat-value" id="totalClicks">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">會話 ID</div>
+                <div class="stat-value" id="sessionId">-</div>
+            </div>
+        </div>
+        
+        <!-- 資料顯示 -->
+        <div id="dataContainer" class="data-display" style="display: none;">
+            <h3>📋 最新點擊資料</h3>
+            <pre id="dataOutput"></pre>
+        </div>
+    </div>
+
+    <!-- 載入 SDK (使用打包後的版本) -->
+    <script src="../dist/heapmap.js"></script>
+    <script>
+        // UMD 版本會自動附加到 window.HeapMap
+        
+        // 將 HeapMap 附加到 window 以便在控制台中使用
+        window.HeapMap = HeapMap;
+        
+        // 獲取 DOM 元素
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const showStatsBtn = document.getElementById('showStatsBtn');
+        const statsContainer = document.getElementById('statsContainer');
+        const dataContainer = document.getElementById('dataContainer');
+        const dataOutput = document.getElementById('dataOutput');
+        
+        // 初始化 SDK
+        HeapMap.init({
+            maxDataPoints: 100,
+            excludeSelectors: [] // 可以排除某些元素
+        });
+        
+        // 監聽點擊事件
+        HeapMap.on('click', (event) => {
+            console.log('檢測到點擊:', event.detail);
+            updateDisplay();
+        });
+        
+        // 按鈕事件處理
+        startBtn.addEventListener('click', () => {
+            HeapMap.start();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            updateDisplay();
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            HeapMap.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            updateDisplay();
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            HeapMap.clearData();
+            dataContainer.style.display = 'none';
+            updateDisplay();
+        });
+        
+        exportBtn.addEventListener('click', () => {
+            const data = HeapMap.exportData();
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `heapmap-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        showStatsBtn.addEventListener('click', () => {
+            const data = HeapMap.getData();
+            if (data.length > 0) {
+                dataContainer.style.display = 'block';
+                dataOutput.textContent = JSON.stringify(data[data.length - 1], null, 2);
+            } else {
+                alert('目前沒有資料可顯示');
+            }
+        });
+        
+        // 更新顯示
+        function updateDisplay() {
+            const stats = HeapMap.getStats();
+            
+            // 顯示統計資訊
+            statsContainer.style.display = 'flex';
+            document.getElementById('trackingStatus').textContent = stats.isTracking ? '追蹤中' : '已停止';
+            document.getElementById('totalClicks').textContent = stats.totalClicks;
+            document.getElementById('sessionId').textContent = stats.sessionId.substring(0, 12) + '...';
+        }
+        
+        // 初始顯示
+        updateDisplay();
+        
+        // 在控制台中提供一些有用的命令
+        console.log('='.repeat(50));
+        console.log('🗺️ HeapMap SDK 測試環境已就緒！');
+        console.log('='.repeat(50));
+        console.log('可用的控制台命令:');
+        console.log('HeapMap.start() - 開始追蹤');
+        console.log('HeapMap.stop() - 停止追蹤');
+        console.log('HeapMap.getData() - 獲取資料');
+        console.log('HeapMap.getStats() - 獲取統計');
+        console.log('HeapMap.clearData() - 清除資料');
+        console.log('HeapMap.exportData() - 匯出資料');
+        console.log('='.repeat(50));
+    </script>
+</body>
+</html>
